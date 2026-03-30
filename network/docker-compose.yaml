@@ -1,0 +1,130 @@
+version: "3.7"
+
+networks:
+  veridium-net:
+    name: veridium-net
+
+volumes:
+  orderer.veridium.com:
+  peer0.developer.veridium.com:
+  peer0.regulator.veridium.com:
+  couchdb.developer:
+  couchdb.regulator:
+
+services:
+  orderer.veridium.com:
+    container_name: orderer.veridium.com
+    image: hyperledger/fabric-orderer:2.5
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererOrgMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    volumes:
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ./crypto-config/ordererOrganizations/veridium.com/orderers/orderer.veridium.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/veridium.com/orderers/orderer.veridium.com/tls:/var/hyperledger/orderer/tls
+      - orderer.veridium.com:/var/hyperledger/production/orderer
+    ports:
+      - "7050:7050"
+    networks:
+      - veridium-net
+
+  couchdb.developer:
+    container_name: couchdb.developer
+    image: couchdb:3.3
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb.developer:/opt/couchdb/data
+    networks:
+      - veridium-net
+
+  peer0.developer.veridium.com:
+    container_name: peer0.developer.veridium.com
+    image: hyperledger/fabric-peer:2.5
+    environment:
+      - CORE_PEER_ID=peer0.developer.veridium.com
+      - CORE_PEER_ADDRESS=peer0.developer.veridium.com:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.developer.veridium.com:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.developer.veridium.com:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.developer.veridium.com:7051
+      - CORE_PEER_LOCALMSPID=DeveloperOrgMSP
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.developer:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    volumes:
+      - ./crypto-config/peerOrganizations/developer.veridium.com/peers/peer0.developer.veridium.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/developer.veridium.com/peers/peer0.developer.veridium.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.developer.veridium.com:/var/hyperledger/production
+    ports:
+      - "7051:7051"
+    depends_on:
+      - couchdb.developer
+      - orderer.veridium.com
+    networks:
+      - veridium-net
+
+  couchdb.regulator:
+    container_name: couchdb.regulator
+    image: couchdb:3.3
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=adminpw
+    ports:
+      - "7984:5984"
+    volumes:
+      - couchdb.regulator:/opt/couchdb/data
+    networks:
+      - veridium-net
+
+  peer0.regulator.veridium.com:
+    container_name: peer0.regulator.veridium.com
+    image: hyperledger/fabric-peer:2.5
+    environment:
+      - CORE_PEER_ID=peer0.regulator.veridium.com
+      - CORE_PEER_ADDRESS=peer0.regulator.veridium.com:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.regulator.veridium.com:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.regulator.veridium.com:9051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.regulator.veridium.com:9051
+      - CORE_PEER_LOCALMSPID=RegulatorOrgMSP
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.regulator:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+    volumes:
+      - ./crypto-config/peerOrganizations/regulator.veridium.com/peers/peer0.regulator.veridium.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/regulator.veridium.com/peers/peer0.regulator.veridium.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.regulator.veridium.com:/var/hyperledger/production
+    ports:
+      - "9051:9051"
+    depends_on:
+      - couchdb.regulator
+      - orderer.veridium.com
+    networks:
+      - veridium-net

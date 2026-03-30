@@ -1,0 +1,155 @@
+# Channel and consortium config for the VeridiumMesh Fabric network.
+#
+# Three orgs: OrdererOrg (runs Raft ordering), DeveloperOrg (submits credits),
+# and RegulatorOrg (approves credits). Both peer orgs must endorse mints.
+#
+# To generate artifacts:
+#   configtxgen -profile VeridiumGenesis -outputBlock ./channel-artifacts/genesis.block
+#   configtxgen -profile VeridiumChannel -outputCreateChannelTx ./channel-artifacts/channel.tx -channelID veridium-channel
+
+Organizations:
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererOrgMSP
+    MSPDir: crypto-config/ordererOrganizations/veridium.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererOrgMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererOrgMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererOrgMSP.admin')"
+
+  # Developers who submit credit issuance requests
+  - &DeveloperOrg
+    Name: DeveloperOrg
+    ID: DeveloperOrgMSP
+    MSPDir: crypto-config/peerOrganizations/developer.veridium.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('DeveloperOrgMSP.admin', 'DeveloperOrgMSP.peer', 'DeveloperOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('DeveloperOrgMSP.admin', 'DeveloperOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('DeveloperOrgMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('DeveloperOrgMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.developer.veridium.com
+        Port: 7051
+
+  # Government regulators who co-sign credit issuance
+  - &RegulatorOrg
+    Name: RegulatorOrg
+    ID: RegulatorOrgMSP
+    MSPDir: crypto-config/peerOrganizations/regulator.veridium.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('RegulatorOrgMSP.admin', 'RegulatorOrgMSP.peer', 'RegulatorOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('RegulatorOrgMSP.admin', 'RegulatorOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('RegulatorOrgMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('RegulatorOrgMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.regulator.veridium.com
+        Port: 9051
+
+# Orderer settings (single-node Raft)
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  Addresses:
+    - orderer.veridium.com:7050
+  EtcdRaft:
+    Consenters:
+      - Host: orderer.veridium.com
+        Port: 7050
+        ClientTLSCert: crypto-config/ordererOrganizations/veridium.com/orderers/orderer.veridium.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/veridium.com/orderers/orderer.veridium.com/tls/server.crt
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+
+# Channel defaults
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+
+# Application config (peer org membership and policies)
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+
+# Profiles for configtxgen
+Profiles:
+  VeridiumGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+    Consortiums:
+      VeridiumConsortium:
+        Organizations:
+          - *DeveloperOrg
+          - *RegulatorOrg
+
+  VeridiumChannel:
+    Consortium: VeridiumConsortium
+    <<: *ChannelDefaults
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *DeveloperOrg
+        - *RegulatorOrg

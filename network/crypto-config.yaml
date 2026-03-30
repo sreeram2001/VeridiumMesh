@@ -1,0 +1,23 @@
+OrdererOrgs:
+  - Name: OrdererOrg
+    Domain: veridium.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer  
+
+PeerOrgs:
+  - Name: DeveloperOrg
+    Domain: developer.veridium.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1 
+    Users:
+      Count: 1
+
+  - Name: RegulatorOrg
+    Domain: regulator.veridium.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1               
+    Users:
+      Count: 1

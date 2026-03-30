@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+*.joblib
+node_modules/
+.next/
+data/chain.json
+network/crypto-config/
+network/channel-artifacts/
+.env
+.DS_Store
